@@ -83,10 +83,13 @@ public abstract class FactoryBeanRegistrySupport extends DefaultSingletonBeanReg
 	 * @see org.springframework.beans.factory.FactoryBean#getObject()
 	 */
 	protected Object getObjectFromFactoryBean(FactoryBean<?> factory, String beanName, boolean shouldPostProcess) {
+		//单例FactoryBean
 		if (factory.isSingleton() && containsSingleton(beanName)) {
 			synchronized (getSingletonMutex()) {
+				//缓存中查看是否已经存在bean
 				Object object = this.factoryBeanObjectCache.get(beanName);
 				if (object == null) {
+					//真实调用factoryBean.getObject的方法
 					object = doGetObjectFromFactoryBean(factory, beanName);
 					// Only post-process and store if not put there already during getObject() call above
 					// (e.g. because of circular reference processing triggered by custom getBean calls)
@@ -95,13 +98,16 @@ public abstract class FactoryBeanRegistrySupport extends DefaultSingletonBeanReg
 						object = alreadyThere;
 					}
 					else {
+						//是否需要进行后置处理器处理
 						if (shouldPostProcess) {
 							if (isSingletonCurrentlyInCreation(beanName)) {
 								// Temporarily return non-post-processed object, not storing it yet..
 								return object;
 							}
+							//创建单例之前，1、singletonsCurrentlyInCreation中添加beanName
 							beforeSingletonCreation(beanName);
 							try {
+								//调用factoryBean的后置处理器applyBeanPostProcessorsAfterInitialization
 								object = postProcessObjectFromFactoryBean(object, beanName);
 							}
 							catch (Throwable ex) {
@@ -109,10 +115,12 @@ public abstract class FactoryBeanRegistrySupport extends DefaultSingletonBeanReg
 										"Post-processing of FactoryBean's singleton object failed", ex);
 							}
 							finally {
+								//创建单例后，1、singletonsCurrentlyInCreation移除beanName
 								afterSingletonCreation(beanName);
 							}
 						}
 						if (containsSingleton(beanName)) {
+							//放到缓存中，防止单例factoryBean重复创建
 							this.factoryBeanObjectCache.put(beanName, object);
 						}
 					}
@@ -145,6 +153,7 @@ public abstract class FactoryBeanRegistrySupport extends DefaultSingletonBeanReg
 	private Object doGetObjectFromFactoryBean(FactoryBean<?> factory, String beanName) throws BeanCreationException {
 		Object object;
 		try {
+			//真正调用FactoryBean的getObject方法
 			object = factory.getObject();
 		}
 		catch (FactoryBeanNotInitializedException ex) {
